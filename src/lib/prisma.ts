@@ -1,48 +1,21 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from "@prisma/client";
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
-let clientInstance: PrismaClient | null = null;
+export const prisma =
+  globalForPrisma.prisma ??
+  new PrismaClient({
+    log:
+      process.env.NODE_ENV === "development"
+        ? ["warn", "error"]
+        : ["error"],
+  });
 
-function getPrismaClient(): PrismaClient | null {
-  if (clientInstance) return clientInstance;
-  if (globalForPrisma.prisma) return globalForPrisma.prisma;
-
-  try {
-    const client = new PrismaClient({
-      log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
-    });
-    if (process.env.NODE_ENV !== 'production') {
-      globalForPrisma.prisma = client;
-    }
-    clientInstance = client;
-    return client;
-  } catch (err) {
-    console.warn('[Prisma] Database client unavailable, using memoryStore fallback:', err);
-    return null;
-  }
+if (process.env.NODE_ENV !== "production") {
+  globalForPrisma.prisma = prisma;
 }
-
-// Resilient Proxy that prevents crashes during Next.js build-time route collection
-export const prisma: PrismaClient = new Proxy({} as PrismaClient, {
-  get(_target, prop) {
-    const client = getPrismaClient();
-    if (!client) {
-      return new Proxy({}, {
-        get() {
-          return () => Promise.reject(new Error('Prisma database unavailable (in-memory store fallback active)'));
-        },
-      });
-    }
-    const val = (client as unknown as Record<string, unknown>)[prop as string];
-    if (typeof val === 'function') {
-      return val.bind(client);
-    }
-    return val;
-  },
-});
 
 /**
  * In-memory fallback mock state store
