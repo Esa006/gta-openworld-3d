@@ -1,0 +1,127 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Player {
+  id               String            @id @default(cuid())
+  username         String            @unique @default("Viper")
+  health           Int               @default(100)
+  armor            Int               @default(50)
+  cash             Int               @default(5000)
+  wantedLevel      Int               @default(0)
+  posX             Float             @default(0.0)
+  posY             Float             @default(1.5)
+  posZ             Float             @default(0.0)
+  rotY             Float             @default(0.0)
+  currentVehicleId String?
+  
+  stats            PlayerStats?
+  inventory        InventoryItem[]
+  missions         MissionProgress[]
+  ownedVehicles    Vehicle[]
+  saves            GameSave[]
+  
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+}
+
+model PlayerStats {
+  id                String   @id @default(cuid())
+  playerId          String   @unique
+  player            Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  distanceTraveled  Float    @default(0.0)
+  missionsCompleted Int      @default(0)
+  vehiclesHijacked  Int      @default(0)
+  copsEvaded        Int      @default(0)
+  shotsFired        Int      @default(0)
+  timePlayedSeconds Int      @default(0)
+}
+
+model Vehicle {
+  id            String   @id @default(cuid())
+  modelName     String   // "Banshee GT", "Stallion V8", "VCPD Cruiser", "Sanchez 500"
+  vehicleType   String   // "SPORTS", "MUSCLE", "POLICE", "MOTO"
+  color         String   @default("#ff1a40")
+  topSpeed      Float    @default(42.0)
+  acceleration  Float    @default(26.0)
+  handling      Float    @default(0.85)
+  health        Int      @default(100)
+  posX          Float
+  posY          Float
+  posZ          Float
+  rotY          Float    @default(0.0)
+  isPlayerOwned Boolean  @default(false)
+  ownerId       String?
+  owner         Player?  @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+}
+
+model InventoryItem {
+  id         String  @id @default(cuid())
+  playerId   String
+  player     Player  @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  name       String  // "Pistol .45", "Micro SMG", "Katana", "Armor Vest"
+  category   String  // "MELEE", "PISTOL", "SMG", "ARMOR", "CONSUMABLE"
+  ammo       Int     @default(60)
+  maxAmmo    Int     @default(300)
+  isEquipped Boolean @default(false)
+}
+
+model Mission {
+  id          String            @id @default(cuid())
+  code        String            @unique // "MISSION_01_THE_GETAWAY"
+  title       String
+  client      String            // "Don Falcone", "The Fixer"
+  description String
+  rewardCash  Int
+  rewardXp    Int
+  targetX     Float
+  targetY     Float
+  targetZ     Float
+  targetName  String            @default("Safehouse Dropoff")
+  progress    MissionProgress[]
+}
+
+model MissionProgress {
+  id        String   @id @default(cuid())
+  playerId  String
+  player    Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  missionId String
+  mission   Mission  @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  status    String   @default("AVAILABLE") // "AVAILABLE" | "ACTIVE" | "COMPLETED" | "FAILED"
+  updatedAt DateTime @updatedAt
+}
+
+model WorldLocation {
+  id          String @id @default(cuid())
+  name        String
+  type        String // "SAFEHOUSE", "GARAGE", "MISSION_HUB", "WEAPON_SHOP", "HOSPITAL"
+  posX        Float
+  posY        Float
+  posZ        Float
+  description String?
+}
+
+model NPC {
+  id        String @id @default(cuid())
+  name      String
+  type      String // "CIVILIAN", "POLICE", "GANG"
+  posX      Float
+  posY      Float
+  posZ      Float
+  behavior  String @default("WANDER") // "WANDER", "PATROL", "GUARD"
+}
+
+model GameSave {
+  id         String   @id @default(cuid())
+  playerId   String
+  player     Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  slotNumber Int      @default(1)
+  saveName   String   // "Downtown Safehouse - 100% Health"
+  worldData  String   // JSON payload of full gameplay state snapshot
+  savedAt    DateTime @default(now())
+}
